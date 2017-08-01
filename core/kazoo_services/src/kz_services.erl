@@ -298,8 +298,8 @@ handle_fetch_result(AccountId, JObj) ->
 -spec add_service_plan(ne_binary(), services()) -> services().
 add_service_plan(PlanId, #kz_services{jobj = JObj}=Services) ->
     ResellerId = kzd_services:reseller_id(JObj),
-    Services#kz_services{jobj = kz_service_plans:add_service_plan(PlanId, ResellerId, JObj)
-                        }.
+    UpdatedJObj = kz_service_plans:add_service_plan(PlanId, ResellerId, JObj),
+    Services#kz_services{jobj = UpdatedJObj}.
 
 %%--------------------------------------------------------------------
 %% @public
@@ -384,7 +384,9 @@ save(#kz_services{jobj = JObj
             ,{fun kz_doc:set_modified/2, kz_time:current_tstamp()}
             ,{fun kzd_services:set_quantities/2, kz_json:merge_jobjs(UpdatedQuantities, CurrentQuantities)}
             ],
-    case save_doc(kz_json:set_values(props:filter_undefined(Props), JObj)) of
+
+    UpdatedJObj = kz_json:set_values(props:filter_undefined(Props), JObj),
+    case kz_datamgr:save_doc(?KZ_SERVICES_DB, UpdatedJObj) of
         {'ok', NewJObj} ->
             ?LOG_DEBUG("saved services for ~s: ~s"
                       ,[AccountId, kz_json:encode(kzd_services:quantities(NewJObj))]

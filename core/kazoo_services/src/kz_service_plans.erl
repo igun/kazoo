@@ -54,12 +54,13 @@ from_service_json(ServicesJObj) ->
     PlanIds = kzd_services:plan_ids(ServicesJObj),
     ?LOG_DEBUG("found plans: ~s", [kz_util:iolist_join($,, PlanIds)]),
     ResellerId = find_reseller_id(ServicesJObj),
+    lager:info("plan ids: ~p", [PlanIds]),
     get_plans(PlanIds, ResellerId, ServicesJObj).
 
 -spec find_reseller_id(kzd_services:doc()) -> api_binary().
 find_reseller_id(ServicesJObj) ->
     case kzd_services:reseller_id(ServicesJObj) of
-        'undefined' -> kz_json:get_value(<<"reseller_id">>, ServicesJObj);
+        'undefined' -> kz_json:get_ne_binary_value(<<"reseller_id">>, ServicesJObj);
         ResellerId -> ResellerId
     end.
 
