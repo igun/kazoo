@@ -54,7 +54,7 @@ from_service_json(ServicesJObj) ->
     PlanIds = kzd_services:plan_ids(ServicesJObj),
     ?LOG_DEBUG("found plans: ~s", [kz_util:iolist_join($,, PlanIds)]),
     ResellerId = find_reseller_id(ServicesJObj),
-    lager:info("plan ids: ~p", [PlanIds]),
+
     get_plans(PlanIds, ResellerId, ServicesJObj).
 
 -spec find_reseller_id(kzd_services:doc()) -> api_ne_binary().
@@ -248,11 +248,8 @@ maybe_fetch_vendor_plan(PlanId, VendorId, VendorId, Overrides) ->
     case kz_service_plan:fetch(PlanId, VendorId) of
         'undefined' -> 'undefined';
         ServicePlan when not AreOverridesEmpty ->
-            lager:info("overrides not empty, merging ~p and overrides ~p", [ServicePlan, Overrides]),
             kzd_service_plan:merge_overrides(ServicePlan, Overrides);
-        ServicePlan ->
-            lager:info("overrides empty, just returning vendor plan ~p", [ServicePlan]),
-            ServicePlan
+        ServicePlan -> ServicePlan
     end;
 maybe_fetch_vendor_plan(PlanId, _, ResellerId, _) ->
     lager:debug("service plan ~s doesnt belong to reseller ~s", [PlanId, ResellerId]),
