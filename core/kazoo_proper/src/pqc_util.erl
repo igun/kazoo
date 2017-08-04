@@ -29,6 +29,8 @@ transition_if_fold({Fun, Args}, {'true', Model}) ->
 simple_counterexample() ->
     simple_counterexample(proper:counterexample()).
 
+simple_counterexample('undefined') ->
+    {error, no_counterexample};
 simple_counterexample([Seq]) ->
     [{M, F, ['{API}'|cleanup_args(Args)]}
      || {set, _Var, {call, M, F, [_|Args]}} <- Seq
