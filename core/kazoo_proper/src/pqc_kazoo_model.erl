@@ -72,18 +72,19 @@ pp(#kazoo_model{accounts=Account
                ,api=API
                }
   ) ->
-    [{'accounts', Account}
-    ,{'numbers', Numbers}
-    ,{'ratedecks', Ratedecks}
-    ,{'service_plans', ServicePlans}
-    ,{'api', API}
-    ].
+    props:filter_empty(
+      [{'accounts', Account}
+      ,{'numbers', Numbers}
+      ,{'ratedecks', Ratedecks}
+      ,{'service_plans', ServicePlans}
+      ,{'api', API}
+      ]).
 
 -spec api(model()) -> pqc_cb_api:state().
 api(#kazoo_model{'api'=API}) -> API.
 
--spec ratedeck(model()) -> map() | 'undefined'.
--spec ratedeck(model(), ne_binary()) -> map() | 'undefined'.
+-spec ratedeck(model()) -> map().
+-spec ratedeck(model(), ne_binary()) -> map().
 ratedeck(Model) ->
     ratedeck(Model, ?KZ_RATES_DB).
 
@@ -97,8 +98,8 @@ has_accounts(#kazoo_model{'accounts'=Accounts}) ->
 -spec has_rate_matching(model(), ne_binary(), ne_binary()) ->
                                'false' |
                                {'true', integer()}.
-has_rate_matching(#kazoo_model{'ratedecks'=Ratedecks}, RatedeckId, DID) ->
-    Ratedeck = maps:get(RatedeckId, Ratedecks, #{}),
+has_rate_matching(#kazoo_model{}=Model, RatedeckId, DID) ->
+    Ratedeck = ratedeck(Model, RatedeckId),
     has_rate_matching(Ratedeck, DID).
 
 -spec has_service_plan_rate_matching(model(), ne_binary(), ne_binary()) -> boolean().
@@ -167,8 +168,8 @@ is_number_missing_in_account(#kazoo_model{}=Model, AccountId, Number) ->
     not is_number_in_account(Model, AccountId, Number).
 
 -spec is_rate_missing(model(), ne_binary(), kzd_rate:doc()) -> boolean().
-is_rate_missing(#kazoo_model{'ratedecks'=Ratedecks}, RatedeckId, RateDoc) ->
-    Ratedeck = maps:get(RatedeckId, Ratedecks, #{}),
+is_rate_missing(#kazoo_model{}=Model, RatedeckId, RateDoc) ->
+    Ratedeck = ratedeck(Model, RatedeckId),
     Prefix = kzd_rate:prefix(RateDoc),
 
     'undefined' =:= maps:get(Prefix, Ratedeck, 'undefined').
@@ -190,14 +191,14 @@ add_account(#kazoo_model{'accounts'=Accounts}=State, Name, APIResp) ->
 
 -spec add_rate_to_ratedeck(model(), ne_binary(), kzd_rate:doc()) -> model().
 add_rate_to_ratedeck(#kazoo_model{'ratedecks'=Ratedecks}=Model, RatedeckId, RateDoc) ->
-    Ratedeck = maps:get(RatedeckId, Ratedecks, #{}),
+    Ratedeck = ratedeck(Model, RatedeckId),
     UpdatedDeck = Ratedeck#{kzd_rate:prefix(RateDoc) => kzd_rate:rate_cost(RateDoc)},
     UpdatedDecks = Ratedecks#{RatedeckId => UpdatedDeck},
     Model#kazoo_model{'ratedecks'=UpdatedDecks}.
 
 -spec remove_rate_from_ratedeck(model(), ne_binary(), kzd_rate:doc()) -> model().
 remove_rate_from_ratedeck(#kazoo_model{'ratedecks'=Ratedecks}=Model, RatedeckId, RateDoc) ->
-    Ratedeck = maps:get(RatedeckId, Ratedecks, #{}),
+    Ratedeck = ratedeck(Model, RatedeckId),
     UpdatedDeck = maps:remove(kzd_rate:prefix(RateDoc), Ratedeck),
 
     case maps:size(UpdatedDeck) of
