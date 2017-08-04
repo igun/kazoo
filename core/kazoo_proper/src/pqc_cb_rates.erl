@@ -288,7 +288,7 @@ seq() ->
     API = pqc_kazoo_model:api(Model),
 
     try
-        RateDoc = rate_doc(?KZ_RATES_DB, 1),
+        RateDoc = rate_doc(<<"custom">>, 1),
 
         _Up = ?MODULE:upload_rate(API, RateDoc),
         ?INFO("upload: ~p~n", [_Up]),
