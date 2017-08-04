@@ -264,6 +264,7 @@ init() ->
 -spec cleanup() -> 'ok'.
 cleanup() ->
     kz_data_tracing:clear_all_traces(),
+    pqc_cb_service_plans:cleanup(),
     cleanup(pqc_cb_api:authenticate()).
 
 cleanup(API) ->
@@ -311,14 +312,15 @@ seq() ->
                 throw('no_account_id')
         end,
 
-        PlanId = service_plan_id(kzd_rate:ratedeck(RateDoc)),
+        RatedeckId = kzd_rate:ratedeck(RateDoc),
+
         _Assigned = ?MODULE:assign_service_plan(API, AccountId, kzd_rate:ratedeck(RateDoc)),
-        case kz_json:get_value([<<"data">>, <<"plan">>, <<"ratedeck">>, PlanId]
+        case kz_json:get_value([<<"data">>, <<"plan">>, <<"ratedeck">>, RatedeckId]
                               ,kz_json:decode(_Assigned)
                               )
         of
             'undefined' ->
-                ?ERROR("failed to assign plan ~s to account ~s", [PlanId, AccountId]),
+                ?ERROR("failed to assign service plan for ~s to account ~s", [RatedeckId, AccountId]),
                 throw('no_plan');
             _ ->
                 ?INFO("assigned service plan to account: ~p~n", [_Assigned])
