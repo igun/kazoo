@@ -73,15 +73,11 @@ find_reseller_id(ServicesJObj) ->
 -spec public_json(plans()) -> kz_json:object().
 public_json(ServicePlans) ->
     PlansJObj = lists:foldl(fun merge_service_plans/2, kz_json:new(), ServicePlans),
-    lager:info("plans found: ~p", [PlansJObj]),
     kzd_service_plan:set_plan(kzd_service_plan:new(), PlansJObj).
 
--spec public_json(plans(), kz_json:object()) -> kzd_service_plan:doc().
-public_json([], JObj) ->
-    kzd_service_plan:set_plan(kzd_service_plan:new(), JObj);
-public_json([#kz_service_plans{plans = Plans}|ServicePlans], JObj) ->
-    NewJObj = lists:foldl(fun merge_plans/2, JObj, Plans),
-    public_json(ServicePlans, NewJObj).
+-spec merge_service_plans(plan(), kz_json:object()) -> kz_json:object().
+merge_service_plans(#kz_service_plans{plans = Plans}, PlansJObj) ->
+    lists:foldl(fun merge_plans/2, PlansJObj, Plans).
 
 -spec merge_plans(kzd_service_plan:doc(), kz_json:object()) -> kz_json:object().
 merge_plans(SerivcePlan, PlansJObj) ->

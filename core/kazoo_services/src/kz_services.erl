@@ -1275,13 +1275,13 @@ get_item_plan(CategoryId, ItemId, ServicePlan) ->
 -spec get_service_modules() -> atoms().
 get_service_modules() ->
     ServiceModules =
-        case kapps_config:get(?WHS_CONFIG_CAT, <<"modules">>) of
+        case kapps_config:get(?CONFIG_CAT, <<"modules">>) of
             [_|_]=ConfModules ->
                 lager:debug("configured service modules: ~p", [ConfModules]),
                 ConfModules;
             _ ->
                 ConfModules = ?SERVICE_MODULES,
-                kapps_config:set_default(?WHS_CONFIG_CAT, <<"modules">>, ConfModules),
+                kapps_config:set_default(?CONFIG_CAT, <<"modules">>, ConfModules),
                 lager:info("set default service modules: ~p", [ConfModules]),
                 ConfModules
         end,
