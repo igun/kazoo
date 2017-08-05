@@ -137,8 +137,6 @@ delete_rate(API, RateDoc) ->
 -spec delete_rate(pqc_cb_api:state(), ne_binary(), ne_binary()) -> pqc_cb_api:response().
 delete_rate(API, ID, <<_/binary>>=RatedeckId) ->
     ?INFO("deleting rate ~s from ~s", [ID, RatedeckId]),
-    _Deleted = pqc_cb_service_plans:delete_service_plan(API, RatedeckId),
-    ?INFO("deleted service plan before rate: ~p", [_Deleted]),
 
     URL = rate_url(ID, RatedeckId),
     pqc_cb_api:make_request([200, 404]
@@ -432,33 +430,43 @@ next_state(Model
 precondition(_Model, _Call) -> 'true'.
 
 -spec postcondition(pqc_kazoo_model:model(), any(), any()) -> boolean().
-postcondition(Model, {'call', _, 'create_account', _Args}=Call, APIResult) ->
+postcondition(Model, Call, APIResult) ->
+    case postcondition1(Model, Call, APIResult) of
+        'true' -> 'true';
+        'false' ->
+            ?INFO("postcondition failed for ~p", [Call]),
+            'false'
+    end.
+
+postcondition1(Model, {'call', _, 'create_account', _Args}=Call, APIResult) ->
     pqc_cb_accounts:postcondition(Model, Call, APIResult);
-postcondition(_Model
-             ,{'call', _, 'upload_rate', [_API, _RateDoc]}
-             ,{'ok', _TaskId}
-             ) ->
+postcondition1(_Model
+              ,{'call', _, 'upload_rate', [_API, _RateDoc]}
+              ,{'ok', _TaskId}
+              ) ->
     'true';
-postcondition(Model
-             ,{'call', _, 'delete_rate', [_API, RatedeckId]}
-             ,APIResult
-             ) ->
+postcondition1(Model
+              ,{'call', _, 'delete_rate', [_API, RatedeckId]}
+              ,APIResult
+              ) ->
     RateDoc = rate_doc(RatedeckId, 0),
     case pqc_kazoo_model:does_rate_exist(Model, RatedeckId, RateDoc) of
         'true' ->
-            <<"success">> =:= kz_json:get_ne_binary_value(<<"status">>, kz_json:decode(APIResult));
+            Resp = kz_json:decode(APIResult),
+            <<"success">> =:= kz_json:get_ne_binary_value(<<"status">>, Resp)
+                andalso kz_json:is_true([<<"data">>, <<"_read_only">>, <<"deleted">>], Resp);
         'false' ->
             404 =:= kz_json:get_integer_value(<<"error">>, kz_json:decode(APIResult))
     end;
-postcondition(Model
-             ,{'call', _, 'rate_did', [_API, RatedeckId, PhoneNumber]}
-             ,APIResult
-             ) ->
+postcondition1(Model
+              ,{'call', _, 'rate_did', [_API, RatedeckId, PhoneNumber]}
+              ,APIResult
+              ) ->
     matches_cost(Model, RatedeckId, PhoneNumber, APIResult);
-postcondition(Model
-             ,{'call', ?MODULE, 'create_service_plan', [_API, RatedeckId]}
-             ,APIResult
-             ) ->
+postcondition1(Model
+              ,{'call', ?MODULE, 'create_service_plan', [_API, RatedeckId]}
+              ,APIResult
+              ) ->
     case pqc_kazoo_model:does_ratedeck_exist(Model, RatedeckId) of
         'true' ->
             ?INFO("ratedeck ~s exists, creating service plan should succeed: ~p"
@@ -471,16 +479,16 @@ postcondition(Model
                  ),
             {'error', 'no_ratedeck'} =:= APIResult
     end;
-postcondition(_Model
-             ,{'call', ?MODULE, 'assign_service_plan', [_API, 'undefined', _RatedeckId]}
-             ,?FAILED_RESPONSE
-             ) ->
+postcondition1(_Model
+              ,{'call', ?MODULE, 'assign_service_plan', [_API, 'undefined', _RatedeckId]}
+              ,?FAILED_RESPONSE
+              ) ->
     ?INFO("not assigning ratedeck ~s to undefined account", [_RatedeckId]),
     'true';
-postcondition(Model
-             ,{'call', ?MODULE, 'assign_service_plan', [_API, _AccountId, RatedeckId]}
-             ,APIResult
-             ) ->
+postcondition1(Model
+              ,{'call', ?MODULE, 'assign_service_plan', [_API, _AccountId, RatedeckId]}
+              ,APIResult
+              ) ->
     PlanId = service_plan_id(RatedeckId),
     case pqc_kazoo_model:does_service_plan_exist(Model, PlanId) of
         'true' ->
@@ -496,22 +504,22 @@ postcondition(Model
                                  ,kz_json:decode(APIResult)
                                  )
     end;
-postcondition(_Model
-             ,{'call', ?MODULE, 'rate_account_did', [_API, 'undefined', _DID]}
-             ,?FAILED_RESPONSE
-             ) ->
+postcondition1(_Model
+              ,{'call', ?MODULE, 'rate_account_did', [_API, 'undefined', _DID]}
+              ,?FAILED_RESPONSE
+              ) ->
     'true';
-postcondition(Model
-             ,{'call', ?MODULE, 'rate_account_did', [_API, AccountId, DID]}
-             ,APIResult
-             ) ->
+postcondition1(Model
+              ,{'call', ?MODULE, 'rate_account_did', [_API, AccountId, DID]}
+              ,APIResult
+              ) ->
     matches_service_plan_cost(Model, AccountId, DID, APIResult).
 
 matches_service_plan_cost(Model, AccountId, DID, APIResult) ->
     case pqc_kazoo_model:has_service_plan_rate_matching(Model, AccountId, DID) of
         {'true', Cost} when is_number(APIResult) ->
             ?INFO("model rates ~s against account ~s as ~p, got ~p in API"
-                 ,[DID, AccountId, Cost, APIResult]
+                 ,[DID, AccountId, Cost, wht_util:dollars_to_units(APIResult)]
                  ),
             Cost =:= wht_util:dollars_to_units(APIResult);
         {'true', _Cost} ->
@@ -530,7 +538,7 @@ matches_cost(Model, RatedeckId, DID, APIResult) ->
     case pqc_kazoo_model:has_rate_matching(Model, RatedeckId, DID) of
         {'true', Cost} when is_number(APIResult) ->
             ?INFO("model rates ~s as ~p, got ~p in API"
-                 ,[DID, Cost, APIResult]
+                 ,[DID, Cost, wht_util:dollars_to_units(APIResult)]
                  ),
             Cost =:= wht_util:dollars_to_units(APIResult);
         {'true', _Cost} ->
