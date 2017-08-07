@@ -1,9 +1,11 @@
 -module(pqc_cb_rates).
 -behaviour(proper_statem).
 
--export([seq/0, init/0, cleanup/0]).
+-export([seq/0, init/0
+        ,cleanup/0, cleanup/1
+        ]).
 
--export([upload_rate/2
+-export([upload_rate/2, upload_csv/2
         ,rate_did/3
         ,delete_rate/2
         ,get_rate/2
@@ -49,11 +51,23 @@ rate_doc(RatedeckId, Cost) ->
 upload_rate(API, RateDoc) ->
     ?INFO("uploading rate ~p", [RateDoc]),
     CSV = kz_csv:from_jobjs([RateDoc]),
+    upload_csv(API, CSV, kzd_rate:ratedeck(RateDoc)).
 
+-spec upload_csv(pqc_cb_api:state(), iodata()) ->
+                        {'ok', api_ne_binary()}.
+-spec upload_csv(pqc_cb_api:state(), iodata(), api_ne_binary()) ->
+                        {'ok', api_ne_binary()}.
+upload_csv(API, CSV) ->
+    upload_csv(API, CSV, 'undefined').
+
+upload_csv(API, CSV, RatedeckId) ->
     CreateResp = pqc_cb_tasks:create(API, "category=rates&action=import", CSV),
     TaskId = kz_json:get_ne_binary_value([<<"data">>, <<"_read_only">>, <<"id">>], kz_json:decode(CreateResp)),
     _ExecResp = pqc_cb_tasks:execute(API, TaskId),
-    create_service_plan(API, kzd_rate:ratedeck(RateDoc)),
+
+    is_binary(RatedeckId)
+        andalso create_service_plan(API, RatedeckId),
+
     _DelResp = wait_for_task(API, TaskId),
 
     {'ok', TaskId}.
@@ -260,6 +274,7 @@ init() ->
     ?INFO("INIT FINISHED").
 
 -spec cleanup() -> 'ok'.
+-spec cleanup(pqc_cb_api:state()) -> 'ok'.
 cleanup() ->
     ?INFO("CLEANUP ALL THE THINGS"),
     kz_data_tracing:clear_all_traces(),
