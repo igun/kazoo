@@ -201,12 +201,7 @@ remove_rate_from_ratedeck(#kazoo_model{'ratedecks'=Ratedecks}=Model, RatedeckId,
     Ratedeck = ratedeck(Model, RatedeckId),
     UpdatedDeck = maps:remove(kzd_rate:prefix(RateDoc), Ratedeck),
 
-    case maps:size(UpdatedDeck) of
-        0 ->
-            Model#kazoo_model{'ratedecks'=maps:remove(RatedeckId, Ratedecks)};
-        _ ->
-            Model#kazoo_model{'ratedecks'=Ratedecks#{RatedeckId => UpdatedDeck}}
-    end.
+    Model#kazoo_model{'ratedecks'=Ratedecks#{RatedeckId => UpdatedDeck}}.
 
 -spec add_number_to_account(model(), ne_binary(), ne_binary(), pqc_cb_api:response()) -> model().
 add_number_to_account(#kazoo_model{'numbers'=Numbers}=Model, AccountId, Number, APIResp) ->
