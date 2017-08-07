@@ -180,7 +180,9 @@ does_rate_exist(Model, RatedeckId, RateDoc) ->
 
 -spec does_ratedeck_exist(model(), ne_binary()) -> boolean().
 does_ratedeck_exist(#kazoo_model{'ratedecks'=Ratedecks}, RatedeckId) ->
-    is_map(maps:get(RatedeckId, Ratedecks, 'undefined')).
+    Ratedeck = maps:get(RatedeckId, Ratedecks, 'undefined'),
+    is_map(Ratedeck)
+        andalso 0 =/= maps:size(Ratedeck).
 
 -spec add_account(model(), ne_binary(), pqc_cb_api:response()) -> model().
 add_account(#kazoo_model{'accounts'=Accounts}=State, Name, APIResp) ->
