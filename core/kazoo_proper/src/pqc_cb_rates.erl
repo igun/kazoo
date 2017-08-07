@@ -65,9 +65,6 @@ upload_csv(API, CSV, _RatedeckId) ->
     TaskId = kz_json:get_ne_binary_value([<<"data">>, <<"_read_only">>, <<"id">>], kz_json:decode(CreateResp)),
     _ExecResp = pqc_cb_tasks:execute(API, TaskId),
 
-    %% is_binary(RatedeckId)
-    %%     andalso create_service_plan(API, RatedeckId),
-
     _DelResp = wait_for_task(API, TaskId),
 
     {'ok', TaskId}.
