@@ -261,6 +261,7 @@ init() ->
 
 -spec cleanup() -> 'ok'.
 cleanup() ->
+    ?INFO("CLEANUP ALL THE THINGS"),
     kz_data_tracing:clear_all_traces(),
     pqc_cb_service_plans:cleanup(),
     cleanup(pqc_cb_api:authenticate()).
