@@ -417,10 +417,10 @@ next_state(Model
           ,_APIResp
           ,{'call', ?MODULE, 'create_service_plan', [_API, RatedeckId]}
           ) ->
-    PlanId = service_plan_id(RatedeckId),
+    ServicePlan = ratedeck_service_plan(RatedeckId),
     pqc_util:transition_if(Model
                           ,[{fun pqc_kazoo_model:does_ratedeck_exist/2, [RatedeckId]}
-                           ,{fun pqc_kazoo_model:add_service_plan/2, [PlanId]}
+                           ,{fun pqc_kazoo_model:add_service_plan/2, [ServicePlan]}
                            ]
                           );
 next_state(Model
@@ -431,7 +431,7 @@ next_state(Model
     pqc_util:transition_if(Model
                           ,[{fun pqc_kazoo_model:does_account_exist/2, [AccountId]}
                            ,{fun pqc_kazoo_model:does_service_plan_exist/2, [PlanId]}
-                           ,{fun pqc_kazoo_model:add_service_plan/3, [AccountId, PlanId]}
+                           ,{fun pqc_kazoo_model:add_service_plan/3, [AccountId, ratedeck_service_plan(RatedeckId)]}
                            ]
                           );
 next_state(Model

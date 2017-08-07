@@ -35,9 +35,10 @@
 
 %% #{"prefix" => cost}
 -type rate_data() :: #{ne_binary() => non_neg_integer()}.
+-type service_plans() :: [{ne_binary(), kzd_service_plan:plan()}].
 
 -type account_data() :: #{'name' => ne_binary()
-                         ,'service_plans' => ne_binaries()
+                         ,'service_plans' => service_plans()
                          }.
 %% #{AccountId => AccountData}
 -type accounts() :: #{ne_binary() => account_data()}.
@@ -52,7 +53,7 @@
        ,{'accounts' = #{} :: accounts()
         ,'numbers' = #{} :: numbers()
         ,'ratedecks' = #{} :: #{ne_binary() => rate_data()}
-        ,'service_plans' = [] :: ne_binaries() % plan IDs
+        ,'service_plans' = [] :: service_plans()
         ,'api' :: pqc_cb_api:state()
         }
        ).
@@ -113,12 +114,15 @@ has_service_plan_rate_matching(#kazoo_model{'accounts'=Accounts
     Account = maps:get(AccountId, Accounts, #{}),
     case maps:get('service_plans', Account, []) of
         [] ->
+            ?DEBUG("no service plans for account, checking ~s", [?KZ_RATES_DB]),
             has_rate_matching(Model, ?KZ_RATES_DB, DID);
-        [SP] ->
-            case lists:member(SP, SPs) of
+        [{SPId, SP}] ->
+            case lists:member({SPId, SP}, SPs) of
                 'false' -> 'false';
                 'true' ->
-                    Ratedeck = maps:get(SP, Ratedecks, #{}),
+                    [RatedeckId] = kzd_service_plan:items(SP, <<"ratedeck">>),
+                    Ratedeck = maps:get(RatedeckId, Ratedecks, #{}),
+                    ?DEBUG("from service plan ~s, got ratedeck ~s: ~p", [SPId, RatedeckId, Ratedeck]),
                     has_rate_matching(Ratedeck, DID)
             end
     end.
@@ -154,7 +158,7 @@ is_account_missing(#kazoo_model{}=Model, Id) ->
 
 -spec does_service_plan_exist(model(), ne_binary()) -> boolean().
 does_service_plan_exist(#kazoo_model{'service_plans'=Plans}, PlanId) ->
-    lists:member(PlanId, Plans).
+    'false' =/= lists:keyfind(PlanId, Plans).
 
 -spec is_number_in_account(model(), ne_binary(), ne_binary()) -> boolean().
 is_number_in_account(#kazoo_model{}=Model, AccountId, Number) ->
@@ -213,21 +217,25 @@ add_number_to_account(#kazoo_model{'numbers'=Numbers}=Model, AccountId, Number, 
                   },
     Model#kazoo_model{'numbers'=Numbers#{Number => NumberData}}.
 
--spec add_service_plan(model(), ne_binary()) -> model().
--spec add_service_plan(model(), ne_binary(), ne_binary()) -> model().
-add_service_plan(#kazoo_model{'service_plans'=Plans}=Model, ServicePlanId) ->
-    Model#kazoo_model{'service_plans'=lists:usort([ServicePlanId | Plans])}.
+-spec add_service_plan(model() | kz_proplist(), kzd_service_plan:doc()) -> model().
+-spec add_service_plan(model(), ne_binary(), kzd_service_plan:doc()) -> model().
+add_service_plan(#kazoo_model{'service_plans'=Plans}=Model, ServicePlan) ->
+    Model#kazoo_model{'service_plans'=add_service_plan(Plans, ServicePlan)};
+add_service_plan(Plans, ServicePlan) ->
+    Id = kz_doc:id(ServicePlan),
+    lists:ukeysort(1, [{Id, ServicePlan} | Plans]).
 
-add_service_plan(Model, AccountId, ServicePlanId) ->
-    add_service_plan_to_account(add_service_plan(Model, ServicePlanId)
+add_service_plan(Model, AccountId, ServicePlan) ->
+    add_service_plan_to_account(add_service_plan(Model, ServicePlan)
                                ,AccountId
-                               ,ServicePlanId
+                               ,ServicePlan
                                ).
 
--spec add_service_plan_to_account(model(), ne_binary(), ne_binary()) -> model().
-add_service_plan_to_account(#kazoo_model{'accounts'=Accounts}=Model, AccountId, ServicePlanId) ->
+-spec add_service_plan_to_account(model(), ne_binary(), kzd_service_plan:doc()) -> model().
+add_service_plan_to_account(#kazoo_model{'accounts'=Accounts}=Model, AccountId, ServicePlan) ->
     #{'service_plans' := Plans}=Account = maps:get(AccountId, Accounts),
-    Account1 = Account#{'service_plans' => lists:usort([ServicePlanId | Plans])},
+
+    Account1 = Account#{'service_plans' => add_service_plan(Plans, ServicePlan)},
     Accounts1 = Accounts#{AccountId => Account1},
     Model#kazoo_model{'accounts'=Accounts1}.
 
