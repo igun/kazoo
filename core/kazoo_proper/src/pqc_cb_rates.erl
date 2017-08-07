@@ -60,13 +60,13 @@ upload_rate(API, RateDoc) ->
 upload_csv(API, CSV) ->
     upload_csv(API, CSV, 'undefined').
 
-upload_csv(API, CSV, RatedeckId) ->
+upload_csv(API, CSV, _RatedeckId) ->
     CreateResp = pqc_cb_tasks:create(API, "category=rates&action=import", CSV),
     TaskId = kz_json:get_ne_binary_value([<<"data">>, <<"_read_only">>, <<"id">>], kz_json:decode(CreateResp)),
     _ExecResp = pqc_cb_tasks:execute(API, TaskId),
 
-    is_binary(RatedeckId)
-        andalso create_service_plan(API, RatedeckId),
+    %% is_binary(RatedeckId)
+    %%     andalso create_service_plan(API, RatedeckId),
 
     _DelResp = wait_for_task(API, TaskId),
 
@@ -203,7 +203,7 @@ make_rating_request(API, URL) ->
     RespJObj = kz_json:decode(Resp),
     case kz_json:get_ne_binary_value(<<"status">>, RespJObj) of
         <<"error">> -> 'undefined';
-        <<"success">> -> kz_json:get_integer_value([<<"data">>, <<"Rate">>], RespJObj)
+        <<"success">> -> kz_json:get_float_value([<<"data">>, <<"Rate">>], RespJObj)
     end.
 
 rates_url() ->
@@ -225,6 +225,7 @@ correct() ->
            ,commands(?MODULE)
            ,?TRAPEXIT(
                begin
+                   timer:sleep(1000),
                    try run_commands(?MODULE, Cmds) of
                        {History, Model, Result} ->
                            cleanup(pqc_kazoo_model:api(Model)),
