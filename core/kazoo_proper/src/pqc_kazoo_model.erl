@@ -158,7 +158,7 @@ is_account_missing(#kazoo_model{}=Model, Id) ->
 
 -spec does_service_plan_exist(model(), ne_binary()) -> boolean().
 does_service_plan_exist(#kazoo_model{'service_plans'=Plans}, PlanId) ->
-    'false' =/= lists:keyfind(PlanId, Plans).
+    'false' =/= lists:keyfind(PlanId, 1, Plans).
 
 -spec is_number_in_account(model(), ne_binary(), ne_binary()) -> boolean().
 is_number_in_account(#kazoo_model{}=Model, AccountId, Number) ->
